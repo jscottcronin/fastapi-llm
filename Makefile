@@ -37,8 +37,7 @@ setup: ## Install dependencies using Poetry
 
 # Linting and type-checking
 lint: ## Run flake8 for linting
-	$(POETRY) run ruff check --fix
-	$(POETRY) run ruff format
+	$(POETRY) run ruff check --no-fix
 	$(POETRY) run mypy .
 
 test: ## Run tests

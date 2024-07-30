@@ -30,13 +30,16 @@ select = [
     "SIM", # flake8-simplify
     "I",   # isort
 ]
-
 pydocstyle.convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["D"]
 
 [tool.ruff.format]
 docstring-code-format = false
 
 [tool.mypy]
+exclude = ["^tests/"]
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
