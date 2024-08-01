@@ -1,14 +1,19 @@
 """FastAPI app for LLM requests."""
 
-from fastapi import FastAPI
+from anthropic.types.message import Message
+from fastapi.responses import RedirectResponse
 
-app = FastAPI()
+from app.core.app import create_app
+from app.core.client import anthropic_client
+from app.core.schemas import AnthropicBedrockRequest, AnthropicRequest
+
+app = create_app()
 
 
 @app.get("/")
-async def root() -> dict:
-    """Index Endpoint."""
-    return {"message": "Hello World"}
+async def root() -> RedirectResponse:
+    """Index endpoint gets redirected to /docs."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
@@ -17,13 +22,9 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/test")
-async def test() -> dict:
-    """Test endpoint."""
-    return {"message": "test endpoint"}
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+@app.post("/anthropic")
+async def anthropic(request: AnthropicRequest) -> Message:
+    """Anthropic endpoint."""
+    bedrock_request = AnthropicBedrockRequest.format(request)
+    response = await anthropic_client.messages.create(**bedrock_request)
+    return response

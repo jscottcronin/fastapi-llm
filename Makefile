@@ -3,12 +3,17 @@ DOCKER_COMPOSE=docker-compose
 POETRY=poetry
 
 # Targets
-.PHONY: all build up down prune logs shell setup lint mypy test clean help
+.PHONY: all run-local run-docker build up down prune logs shell setup sync update lint mypy clean help
 
 all: setup prune build up
 
-local: ## Run the application locally
-	$(POETRY) run python app/main.py
+run-local: ## Run the application locally
+	$(POETRY) run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+run-docker: ## Run the application locally
+	make prune
+	make build
+	make up
 
 # Docker Compose commands
 build: ## Build the Docker containers
@@ -34,6 +39,15 @@ shell: ## Open a shell in the specified Docker service container
 setup: ## Install dependencies using Poetry
 	poetry config virtualenvs.in-project true
 	$(POETRY) install
+
+# Sync python environment with Poetry
+sync: ## Sync dependencies between lock file and pyproject.toml using Poetry
+	$(POETRY) lock --no-update
+	$(POETRY) install
+
+# Update python libraries to latest versions
+update: ## Update dependencies using Poetry
+	$(POETRY) update
 
 # Linting and type-checking
 lint: ## Run flake8 for linting

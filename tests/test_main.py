@@ -17,9 +17,3 @@ def test_health():
     """Test the health endpoint."""
     response = client.get("/health")
     assert response.status_code == 200
-
-
-def test_test():
-    """Test the test endpoint."""
-    response = client.get("/test")
-    assert response.status_code == 200
