@@ -1,5 +1,4 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches: [ main ]
@@ -11,56 +10,101 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        poetry install
-    - name: Run linting and type checking
-      run: make lint
-    - name: Run tests
-      run: make test
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install
+      - name: Run linting and type checking
+        run: make lint
+      - name: Run tests
+        run: make test
 
   build-and-push:
     needs: lint-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-west-2
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-    - name: Create ECR repository if not exists
-      run: |
-        aws ecr describe-repositories \
-        --repository-names ${{ github.event.repository.name }} \
-        || aws ecr create-repository \
-        --repository-name ${{ github.event.repository.name }}
-    - name: Build, tag, and push image to Amazon ECR
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: ${{ github.event.repository.name }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-    - name: Update SSM Parameter
-      run: |
-        aws ssm put-parameter \
-        --name "/app/${{ github.event.repository.name }}/latest-image-tag" \
-        --value "${{ github.sha }}" \
-        --type "String" \
-        --overwrite
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Create ECR repository if not exists
+        run: |
+          aws ecr describe-repositories \
+          --repository-names ${{ github.event.repository.name }} \
+          || aws ecr create-repository \
+          --repository-name ${{ github.event.repository.name }}
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ github.event.repository.name }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Update SSM Parameter
+        run: |
+          aws ssm put-parameter \
+          --name "/app/${{ github.event.repository.name }}/latest-image-tag" \
+          --value "${{ github.sha }}" \
+          --type "String" \
+          --overwrite
+
+  deploy:
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout llm-infra repo
+        uses: actions/checkout@v4
+        with:
+          repository: jscottcronin/llm-infra
+          path: llm-infra
+          token: ${{ secrets.GH_PAT }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Terraform Init
+        env:
+          ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+          ECR_REPOSITORY: ${{ github.event.repository.name }}
+          ECR_IMAGE: "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}"
+        run: |
+          pwd
+          ls -al
+          cd llm-infra/llm
+          pwd
+          ls -al
+          terraform init
+      - name: Terraform Plan
+        # env:
+        #   ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+        #   ECR_REPOSITORY: ${{ github.event.repository.name }}
+        #   ECR_IMAGE: "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}"
+        run: |
+          cd llm-infra/llm
+          pwd
+          ls -al
+          echo ${{ env.ECR_IMAGE }}
+          terraform plan -out=tfplan -var="container_image=${{ env.ECR_IMAGE }}"
+      - name: Terraform Apply
+        run: |
+          cd llm-infra/llm
+          pwd
+          ls -al
+          terraform apply -auto-approve tfplan
