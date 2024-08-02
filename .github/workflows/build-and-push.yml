@@ -63,6 +63,8 @@ jobs:
           --value "${{ github.sha }}" \
           --type "String" \
           --overwrite
+    outputs:
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
 
   deploy:
     needs: build-and-push
@@ -80,31 +82,21 @@ jobs:
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
       - name: Terraform Init
-        env:
-          ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
-          ECR_REPOSITORY: ${{ github.event.repository.name }}
-          ECR_IMAGE: "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}"
         run: |
-          pwd
-          ls -al
           cd llm-infra/llm
-          pwd
-          ls -al
           terraform init
       - name: Terraform Plan
-        # env:
-        #   ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
-        #   ECR_REPOSITORY: ${{ github.event.repository.name }}
-        #   ECR_IMAGE: "${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}"
+        env:
+          ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
+          ECR_REPOSITORY: ${{ github.event.repository.name }}
         run: |
+          echo ecr-registry: $ECR_REGISTRY
+          echo ecr-repo: $ECR_REPOSITORY
+          echo ecr-image: $ECR_REGISTRY/$ECR_REPOSITORY
+
           cd llm-infra/llm
-          pwd
-          ls -al
-          echo ${{ env.ECR_IMAGE }}
-          terraform plan -out=tfplan -var="container_image=${{ env.ECR_IMAGE }}"
-      - name: Terraform Apply
-        run: |
-          cd llm-infra/llm
-          pwd
-          ls -al
-          terraform apply -auto-approve tfplan
+          terraform plan -out=tfplan -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY"
+      # - name: Terraform Apply
+      #   run: |
+      #     cd llm-infra/llm
+      #     terraform apply -auto-approve tfplan
