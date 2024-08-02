@@ -21,11 +21,6 @@ async def health() -> dict:
     """Health Check Endpoint."""
     return {"status": "ok"}
 
-@app.get("/test")
-async def test() -> dict:
-    """Health Check Endpoint."""
-    return {"new_test": "pass2"}
-
 
 @app.post("/anthropic")
 async def anthropic(request: AnthropicRequest) -> Message:

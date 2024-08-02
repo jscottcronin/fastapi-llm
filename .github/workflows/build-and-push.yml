@@ -91,8 +91,6 @@ jobs:
           ECR_REPOSITORY: ${{ github.event.repository.name }}
         run: |
           cd llm-infra/llm
-          echo $ECR_REGISTRY/$ECR_REPOSITORY
-          echo "container_image=$ECR_REGISTRY/$ECR_REPOSITORY"
           terraform plan -out=tfplan -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY"
       - name: Terraform Apply
         run: |

@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.core.client import bedrock_client
-from app.core.config import settings
+from app.core.settings import settings
 
 
 @asynccontextmanager

@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.core.config import settings
+from app.core.settings import settings
 
 
 class AnthropicMessage(BaseModel):
