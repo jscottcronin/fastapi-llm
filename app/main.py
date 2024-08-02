@@ -24,7 +24,7 @@ async def health() -> dict:
 @app.get("/test")
 async def test() -> dict:
     """Health Check Endpoint."""
-    return {"new_test": "pass"}
+    return {"new_test": "pass2"}
 
 
 @app.post("/anthropic")

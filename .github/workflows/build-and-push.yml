@@ -90,13 +90,11 @@ jobs:
           ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
           ECR_REPOSITORY: ${{ github.event.repository.name }}
         run: |
-          echo ecr-registry: $ECR_REGISTRY
-          echo ecr-repo: $ECR_REPOSITORY
-          echo ecr-image: $ECR_REGISTRY/$ECR_REPOSITORY
-
           cd llm-infra/llm
+          echo $ECR_REGISTRY/$ECR_REPOSITORY
+          echo "container_image=$ECR_REGISTRY/$ECR_REPOSITORY"
           terraform plan -out=tfplan -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY"
-      # - name: Terraform Apply
-      #   run: |
-      #     cd llm-infra/llm
-      #     terraform apply -auto-approve tfplan
+      - name: Terraform Apply
+        run: |
+          cd llm-infra/llm
+          terraform apply -auto-approve tfplan
